@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Interaktif Business Model Canvas</title>
+    <!-- Google Fonts untuk tipografi premium modern -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS untuk tata letak utilitas dasar -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Engine ekspor resolusi tinggi -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Segoe UI', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-dark': '#1e3a8a',
+                        'accent-blue': '#3b82f6',
+                        'accent-gold': '#e1b12c',
+                        'accent-red': '#e74c3c',
+                        'accent-green': '#2ecc71',
+                        'canvas-bg': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Mengatur latar belakang halaman agar sesuai dengan gambar referensi */
+        body {
+            background-color: #f1f5f9;
+        }
+
+        /* Navigasi Tab Premium */
+        .tab-button {
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #1e3a8a;
+            font-weight: 700;
+        }
+
+        /* Tata letak grid BMC presisi 5 kolom untuk baris atas */
+        .bmc-grid-layout {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(280px, auto));
+            gap: 16px;
+        }
+
+        /* Penentuan posisi grid untuk masing-masing blok strategis */
+        .kp-box { grid-column: 1; grid-row: 1 / 3; }
+        .ka-box { grid-column: 2; grid-row: 1; }
+        .kr-box { grid-column: 2; grid-row: 2; }
+        .vp-box { grid-column: 3; grid-row: 1 / 3; }
+        .cr-box { grid-column: 4; grid-row: 1; }
+        .ch-box { grid-column: 4; grid-row: 2; }
+        .cs-box { grid-column: 5; grid-row: 1 / 3; }
+
+        /* Tata letak grid baris bawah (Cost & Revenue) */
+        .bottom-grid-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        /* Gaya visual Sticky Notes yang elegan */
+        .sticky-note {
+            background-color: #fffbc8;
+            border-left: 4px solid #f1c40f;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.2s ease-in-out;
+            animation: slideIn 0.25s ease-out;
+        }
+        .sticky-note:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Kustomisasi scrollbar halus untuk area isi catatan */
+        .notes-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        .notes-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .notes-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* Aturan CSS khusus saat pengeksporan PDF / PNG berlangsung */
+        body.exporting .interactive-ui {
+            display: none !important;
+        }
+        body.exporting .input-panel {
+            display: none !important;
+        }
+        body.exporting .delete-btn {
+            display: none !important;
+        }
+        body.exporting #canvas-area {
+            padding: 32px !important;
+            background-color: #ffffff !important;
+            border-radius: 0px !important;
+        }
+
+        /* Gaya visual khusus untuk Tab Uji Keandalan */
+        .test-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px;
+            transition: all 0.2s;
+        }
+        .test-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .score-radio {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #cbd5e1;
+            border-radius: 50%;
+            outline: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .score-radio:checked {
+            border-color: #3b82f6;
+            background-color: #3b82f6;
+            box-shadow: inset 0 0 0 3px #white;
+        }
+        .score-radio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            display: none;
+        }
+        .score-radio:checked::after {
+            display: block;
+        }
+    </style>
+</head>
+<body class="p-6 text-slate-700">
+
+    <!-- Layar Loading Pemrosesan Ekspor -->
+    <div id="loader-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex-col items-center justify-center text-white gap-4">
+        <div class="w-12 h-12 border-4 border-slate-300 border-t-white rounded-full animate-spin"></div>
+        <div id="loader-text" class="font-semibold text-lg">Mempersiapkan dokumen...</div>
+    </div>
+
+    <!-- Sistem Notifikasi Toast Ringkas -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[99999] flex flex-col gap-2"></div>
+
+    <!-- Modal Konfirmasi Kustom (Mengganti fungsi alert/confirm bawaan browser) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-100 transform transition-all scale-95 duration-200">
+            <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-800 mb-2">Kosongkan Canvas?</h3>
+            <p id="confirm-modal-body" class="text-slate-600 text-sm mb-6 leading-relaxed">Apakah Anda yakin ingin mengosongkan kanvas ini? Semua catatan strategi bisnis Anda saat ini akan dihapus secara permanen.</p>
+            <div class="flex items-center justify-end gap-3">
+                <button onclick="closeConfirmModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg text-sm transition">
+                    Batal
+                </button>
+                <button id="confirm-modal-action" class="bg-accent-red hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm">
+                    Ya, Kosongkan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Simpan Case Kustom -->
+    <div id="save-case-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-100 transform transition-all scale-95 duration-200">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Simpan Model Bisnis Baru</h3>
+            <p class="text-slate-500 text-xs mb-4">Kasus akan disimpan secara aman di sistem penyimpanan cloud Anda.</p>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Bisnis / Studi Kasus</label>
+                    <input type="text" id="save-case-title" placeholder="Contoh: Kedai Ramen Bahagia" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-slate-400 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Visi / Deskripsi Singkat</label>
+                    <textarea id="save-case-subtitle" rows="2" placeholder="Contoh: Platform kuliner jepang premium dengan harga terjangkau..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-slate-400 transition"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3">
+                <button onclick="closeSaveCaseModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg text-sm transition">
+                    Batal
+                </button>
+                <button onclick="executeSaveCase()" class="bg-accent-blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm">
+                    Simpan Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kontainer Area Kerja Utama -->
+    <div class="max-w-[1550px] mx-auto">
+        
+        <!-- Teks Informasi Atas -->
+        <p class="text-center text-slate-600 text-sm md:text-base mb-4 font-medium interactive-ui">
+            Pilih contoh studi kasus untuk simulasi, simpan hasil modifikasi Anda, atau buat model bisnis baru secara langsung.
+        </p>
+
+        <!-- Menu Navigasi Tab Utama (Kanvas vs Uji Keandalan) -->
+        <div class="interactive-ui flex border-b border-slate-200 mb-6 gap-2">
+            <button id="tab-btn-canvas" onclick="switchMainTab('canvas')" class="tab-button active text-slate-500 hover:text-slate-800 pb-3 px-5 text-sm md:text-base font-semibold transition">
+                📋 Rancang Kanvas BMC
+            </button>
+            <button id="tab-btn-diagnostik" onclick="switchMainTab('diagnostik')" class="tab-button text-slate-500 hover:text-slate-800 pb-3 px-5 text-sm md:text-base font-semibold transition flex items-center gap-2">
+                🛡️ Uji Keandalan Bisnis (Stress Test)
+                <span id="badge-score-persen" class="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">Belum Diisi</span>
+            </button>
+        </div>
+
+        <!-- Menu Pilihan Kasus & Tombol Kontrol Aksi (Sesuai image_7bc461.png dengan tombol simpan baru) -->
+        <div class="interactive-ui bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+            <!-- Dropdown Pemilih Kasus / Sandbox -->
+            <div class="flex items-center gap-3 mx-auto lg:mx-0">
+                <span class="font-bold text-slate-800 text-sm md:text-base">Pilih Kasus / Sandbox:</span>
+                <select id="template-select" onchange="loadSelectedTemplate()" class="bg-white border border-slate-300 text-slate-700 py-2 px-4 rounded-lg outline-none text-sm font-semibold transition focus:border-slate-400 min-w-[280px]">
+                    <option value="kosong">-- Canvas Kosong (Mulai Bisnis Anda) --</option>
+                    <option value="edugrow" selected>EduGrow (EdTech AI Platform)</option>
+                    <option value="kopi">Kopi Kenangan Senja (Kedai Kopi Lokal)</option>
+                </select>
+            </div>
+
+            <!-- Tombol Aksi Penyimpanan, Ekspor, dan Pengelolaan -->
+            <div class="flex flex-wrap items-center justify-center gap-2 mx-auto lg:mx-0">
+                <button id="btn-save-case" onclick="triggerSaveCase()" class="bg-accent-blue hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-lg text-sm transition shadow-sm active:scale-95 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                    Simpan Progress
+                </button>
+                <button id="btn-delete-custom" onclick="triggerDeleteCustomCase()" class="bg-accent-red hover:bg-red-600 text-white font-bold py-2 px-5 rounded-lg text-sm transition shadow-sm active:scale-95 hidden">
+                    Hapus Kasus
+                </button>
+                <button onclick="triggerClearCanvas()" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-5 rounded-lg text-sm transition shadow-sm active:scale-95">
+                    Kosongkan Canvas
+                </button>
+                <button onclick="downloadAsTxt()" class="bg-accent-green hover:bg-emerald-600 text-white font-bold py-2 px-5 rounded-lg text-sm transition shadow-sm active:scale-95">
+                    Unduh (.txt)
+                </button>
+                <button onclick="exportAsPNG()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm active:scale-95 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Simpan Gambar
+                </button>
+                <button onclick="exportAsPDF()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm active:scale-95 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Unduh PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- AREA KONTEN TAB 1: KANVAS UTAMA -->
+        <div id="content-area-canvas" class="block">
+            <!-- Area Kanvas yang Bisa Diekspor -->
+            <div id="canvas-area" class="bg-transparent rounded-2xl transition-all duration-300">
+                
+                <!-- Header Judul Bisnis Dinamis -->
+                <div id="export-header" class="mb-6 p-6 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col gap-1">
+                    <h1 id="export-title" class="text-2xl font-extrabold text-slate-800">Business Model Canvas</h1>
+                    <p id="export-subtitle" class="text-sm text-slate-500 font-medium leading-relaxed">Simulasi Rencana Strategis Bisnis</p>
+                </div>
+
+                <!-- Grid 5 Kolom Atas sesuai tata letak image_7bc461.png -->
+                <div class="bmc-grid-layout">
+                    
+                    <!-- Key Partnerships (KP) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between kp-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Key Partnerships</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">8</span>
+                            </div>
+                            <div id="notes-kp" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-kp" placeholder="Tambah mitra..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('kp')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Key Activities (KA) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between ka-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Key Activities</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">6</span>
+                            </div>
+                            <div id="notes-ka" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-ka" placeholder="Tambah aktivitas..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('ka')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Key Resources (KR) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between kr-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Key Resources</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">7</span>
+                            </div>
+                            <div id="notes-kr" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-kr" placeholder="Tambah aset..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('kr')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Value Propositions (VP) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between vp-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Value Propositions</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">2</span>
+                            </div>
+                            <div id="notes-vp" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-vp" placeholder="Tambah solusi..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('vp')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Relationships (CR) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between cr-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Customer Relationships</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">4</span>
+                            </div>
+                            <div id="notes-cr" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-cr" placeholder="Tambah interaksi..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('cr')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Channels (CH) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between ch-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Channels</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">3</span>
+                            </div>
+                            <div id="notes-ch" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-ch" placeholder="Tambah saluran..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('ch')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Segments (CS) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between cs-box">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Customer Segments</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">1</span>
+                            </div>
+                            <div id="notes-cs" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-cs" placeholder="Tambah pelanggan..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('cs')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Baris Keuangan Bawah (Cost & Revenue) -->
+                <div class="bottom-grid-layout">
+                    
+                    <!-- Cost Structure (COS) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between min-h-[160px]">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Cost Structure</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">9</span>
+                            </div>
+                            <div id="notes-cos" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-cos" placeholder="Tambah biaya..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('cos')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Revenue Streams (REV) -->
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between min-h-[160px]">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="font-bold text-[#1e3a5f] text-sm md:text-base">Revenue Streams</span>
+                                <span class="bg-accent-gold text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full shadow-sm">5</span>
+                            </div>
+                            <div id="notes-rev" class="space-y-2 max-h-[140px] overflow-y-auto pr-1 notes-scroll"></div>
+                        </div>
+                        <div class="input-panel pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                            <input type="text" id="input-rev" placeholder="Tambah pendapatan..." class="flex-grow bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-slate-400">
+                            <button onclick="addStickyNote('rev')" class="bg-accent-blue hover:bg-blue-600 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- AREA KONTEN TAB 2: DASHBOARD EVALUASI & STRESS TEST -->
+        <div id="content-area-diagnostik" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Panel Pengukur Skor & Meteran Visual -->
+                <div class="lg:col-span-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between min-h-[450px]">
+                    <div class="text-center">
+                        <h2 class="text-lg font-bold text-slate-800 mb-1">Index Keandalan BMC</h2>
+                        <p class="text-xs text-slate-500 mb-6">Mengukur ketahanan rancangan model bisnis Anda.</p>
+                        
+                        <!-- Visual Donut Meter -->
+                        <div class="relative w-40 h-40 mx-auto mb-4 flex items-center justify-center">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="40" stroke="#f1f5f9" stroke-width="10" fill="transparent" />
+                                <circle id="score-meter-circle" cx="50" cy="50" r="40" stroke="#3b82f6" stroke-width="10" fill="transparent" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="transition-all duration-500 ease-out" />
+                            </svg>
+                            <div class="absolute flex flex-col items-center">
+                                <span id="score-angka" class="text-3xl font-extrabold text-slate-800">0%</span>
+                                <span id="score-status" class="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Belum Dinilai</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ringkasan Kategori -->
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                        <h4 class="font-bold text-xs uppercase tracking-wide text-slate-500 mb-2">Evaluasi Model Bisnis:</h4>
+                        <p id="evaluation-brief" class="text-sm text-slate-600 leading-relaxed font-medium">Silakan jawab 7 pertanyaan di samping untuk mendapatkan analisis ketahanan strategis BMC Anda secara instan.</p>
+                    </div>
+                </div>
+
+                <!-- Formulir Pertanyaan Kriteria Strategis -->
+                <div class="lg:col-span-2 space-y-4 max-h-[600px] overflow-y-auto pr-2 notes-scroll">
+                    <!-- Pertanyaan 1 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Kriteria 1: Biaya Peralihan</span>
+                            <span class="text-xs text-slate-400 font-medium">Switching Costs</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Apakah pelanggan Anda mudah berpindah ke kompetitor?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q1" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Sangat Mudah)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q1" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Cukup Menantang)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q1" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Hampir Mustahil)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 2 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Kriteria 2: Arus Pendapatan</span>
+                            <span class="text-xs text-slate-400 font-medium">Recurring Revenues</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Apakah pendapatan bisnis Anda bersifat transaksional atau berulang?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q2" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (100% Transaksional)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q2" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Campuran/Semi-langganan)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q2" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (100% Langganan/Recurring)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 3 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Kriteria 3: Aliran Kas (Working Capital)</span>
+                            <span class="text-xs text-slate-400 font-medium">Earn Before Spend</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Apakah Anda dibayar sebelum memproses barang, atau harus membelanjakan biaya dahulu?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q3" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Belanja berat sebelum dibayar)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q3" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Imbang/Bayar bertahap DP)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q3" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Selalu dibayar 100% di muka)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 4 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">Kriteria 4: Efisiensi Biaya</span>
+                            <span class="text-xs text-slate-400 font-medium">Game-changing Cost Structure</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Apakah struktur operasional biaya Anda jauh lebih murah dibanding kompetitor?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q4" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Sama saja/Bahkan lebih mahal)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q4" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Sedikit lebih hemat 10-20%)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q4" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Inovatif & Hemat 30%+ lebih)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 5 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">Kriteria 5: Daya Ungkit Operasional</span>
+                            <span class="text-xs text-slate-400 font-medium">Leveraging Others</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Seberapa banyak pihak eksternal/pengguna menciptakan nilai tanpa dibayar langsung oleh Anda?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q5" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Bisnis kami memproduksi semuanya)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q5" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Ada sedikit ketergantungan luar)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q5" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Sistem digerakkan penuh oleh user/mitra)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 6 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded">Kriteria 6: Skalabilitas</span>
+                            <span class="text-xs text-slate-400 font-medium">Scalability</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Seberapa mudah bisnis Anda melipatgandakan pendapatan tanpa kenaikan biaya setara?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q6" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Sangat sulit/Biaya naik seiring omzet)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q6" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Bisa diskalakan dengan investasi tambahan)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q6" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Laju pertumbuhan tanpa biaya batas)</label>
+                        </div>
+                    </div>
+
+                    <!-- Pertanyaan 7 -->
+                    <div class="test-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">Kriteria 7: Benteng Pertahanan</span>
+                            <span class="text-xs text-slate-400 font-medium">Moat</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-2">Seberapa sulit bagi kompetitor untuk langsung meniru model bisnis Anda?</h3>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q7" value="1" onchange="recalculateReliability()" class="score-radio"> 1 (Sangat mudah ditiru besok pagi)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q7" value="3" onchange="recalculateReliability()" class="score-radio"> 3 (Sukar karena ada IP/Merek yang mulai tumbuh)</label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer"><input type="radio" name="q7" value="5" onchange="recalculateReliability()" class="score-radio"> 5 (Sangat terlindungi/IP kuat/Efek jaringan)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Sesi ID di Footer untuk Transparansi Akun -->
+        <div class="mt-8 text-center text-xs text-slate-400 interactive-ui flex items-center justify-center gap-2">
+            <span>Sesi ID:</span>
+            <span id="display-user-id" class="font-mono bg-slate-200/60 px-2 py-0.5 rounded text-slate-500">Mengidentifikasi...</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi ID Aplikasi dan Database Awan
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'simulator-bmc-premium';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : { apiKey: "mock-key", authDomain: "mock-domain", projectId: "mock-project" };
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let isFirebaseActive = false;
+
+        // Menyimpan daftar custom case yang dimuat dari database secara lokal
+        let customSavedCases = {};
+
+        // Data struktur template model bisnis awal
+        const activeTemplates = {
+            kosong: {
+                title: "Ide Bisnis Baru Saya",
+                subtitle: "Tuliskan deskripsi ringkas rencana bisnis baru Anda.",
+                data: { kp: [], ka: [], kr: [], vp: [], cr: [], ch: [], cs: [], cos: [], rev: [] }
+            },
+            edugrow: {
+                title: "EduGrow AI Platforms",
+                subtitle: "Platform EdTech Berbasis AI untuk Personalized Learning & Kesiapan Kerja Profesional Muda",
+                data: {
+                    kp: ["Ahli & Praktisi Industri Digital", "Universitas & Lembaga Pendidikan", "Perusahaan Mitra (Hiring Partners)"],
+                    ka: ["Pengembangan AI & Aplikasi", "Produksi Konten & Kurikulum", "Pemasaran & Manajemen Komunitas"],
+                    kr: ["Algoritma AI & Database Materi", "Tim IT & Desainer Kurikulum", "Infrastruktur Cloud Server"],
+                    vp: ["AI-Driven Personalized Learning", "Kurikulum Terstandarisasi Industri", "Interactive Sandbox (Praktik Tanpa Instalasi)"],
+                    cr: ["Evaluasi Otomatis Berbasis AI", "Komunitas Eksklusif (Discord)", "Mentoring Karier Terarah"],
+                    ch: ["Aplikasi Mobile & Platform Web", "Konten Organik (LinkedIn/TikTok)", "Kemitraan Kampus (B2B2C)"],
+                    cs: ["Mahasiswa Aktif (Butuh Skill Industri)", "Fresh Graduates (Career-switching)", "Profesional Muda (Upskilling)"],
+                    cos: ["Gaji Tim IT, Produk, & Infrastruktur Cloud", "Biaya Produksi Konten Pembelajaran & Honor Mentor", "Biaya Pemasaran Digital & Akuisisi Pengguna"],
+                    rev: ["Model Langganan bulanan/tahunan (Freemium)", "Biaya Sertifikasi Kompetensi Resmi", "Paket Pelatihan Karyawan Korporat (B2B)"]
+                }
+            },
+            kopi: {
+                title: "Kopi Kenangan Senja",
+                subtitle: "UMKM Kedai Kopi Berkualitas Tinggi Berbasis Pengalaman & Komunitas Lokal",
+                data: {
+                    kp: ["Petani/Supplier Biji Kopi Lokal", "Penyedia Platform POS & Pembayaran Digital (QRIS)", "Penyedia Bahan Kue & Snack Lokal"],
+                    ka: ["Meracik Kopi & Makanan dengan Konsisten", "Manajemen Kebersihan & Kenyamanan Kafe", "Pemasaran Kreatif Media Sosial harian"],
+                    kr: ["Mesin Espresso Standard Komersial", "Barista Terlatih & Ramah", "Lokasi Kafe Strategis"],
+                    vp: ["Kopi Lokal Berkualitas Tinggi dengan Harga Terjangkau", "Suasana Kafe Ramah Kerja & Estetis", "Program Loyalitas Anggota Unik"],
+                    cr: ["Interaksi Personal Barista dengan Pengunjung", "Event Komunitas Mingguan (Acoustic Night, Workshop)", "Diskon Khusus Pelanggan Setia via Kartu Poin"],
+                    ch: ["Gerai Fisik (Offline Store)", "Aplikasi GrabFood / GoFood", "Instagram & Google My Business"],
+                    cs: ["Mahasiswa & Remote Worker di Area Sekitar", "Pecinta Kopi Lokal dan Pencari Tempat Santai", "Komunitas Kreatif Lokal"],
+                    cos: ["Biaya Sewa Tempat Bulanan & Utilitas", "Pembelian Bahan Baku & Inventori", "Gaji Barista & Staf Kebersihan"],
+                    rev: ["Penjualan Minuman Kopi & Non-kopi Langsung", "Penjualan Makanan Ringan / Pastry Pendamping", "Sewa Ruangan untuk Event Kecil atau Meeting"]
+                }
+            }
+        };
+
+        let canvasState = JSON.parse(JSON.stringify(activeTemplates.edugrow));
+
+        // Penanganan Perpindahan Tab Utama
+        window.switchMainTab = function(tabName) {
+            const btnCanvas = document.getElementById('tab-btn-canvas');
+            const btnDiagnostik = document.getElementById('tab-btn-diagnostik');
+            const areaCanvas = document.getElementById('content-area-canvas');
+            const areaDiagnostik = document.getElementById('content-area-diagnostik');
+
+            if (tabName === 'canvas') {
+                btnCanvas.classList.add('active');
+                btnDiagnostik.classList.remove('active');
+                areaCanvas.classList.remove('hidden');
+                areaCanvas.classList.add('block');
+                areaDiagnostik.classList.add('hidden');
+                areaDiagnostik.classList.remove('block');
+            } else {
+                btnCanvas.classList.remove('active');
+                btnDiagnostik.classList.add('active');
+                areaCanvas.classList.add('hidden');
+                areaCanvas.classList.remove('block');
+                areaDiagnostik.classList.remove('hidden');
+                areaDiagnostik.classList.add('block');
+                recalculateReliability();
+            }
+        };
+
+        // Algoritma Penghitung Indeks Keandalan BMC (Stress Testing Engine)
+        window.recalculateReliability = function() {
+            let totalScore = 0;
+            let questionsAnswered = 0;
+
+            for (let i = 1; i <= 7; i++) {
+                const checkedRadio = document.querySelector(`input[name="q${i}"]:checked`);
+                if (checkedRadio) {
+                    totalScore += parseInt(checkedRadio.value);
+                    questionsAnswered++;
+                }
+            }
+
+            if (questionsAnswered === 0) return;
+
+            // Maksimum skor adalah 35 (7 pertanyaan x skala 5)
+            const percentScore = Math.round((totalScore / 35) * 100);
+            
+            // Perbarui Elemen UI Skor
+            document.getElementById('badge-score-persen').innerText = `${percentScore}%`;
+            document.getElementById('score-angka').innerText = `${percentScore}%`;
+
+            // Hitung Lingkar Meteran SVG Dashoffset
+            // r=40 -> Keliling (C) = 2 * pi * r = 251.2
+            const circle = document.getElementById('score-meter-circle');
+            const offset = 251.2 - (251.2 * percentScore) / 100;
+            circle.style.strokeDashoffset = offset;
+
+            // Tentukan status dan warna visual
+            const statusText = document.getElementById('score-status');
+            const briefText = document.getElementById('evaluation-brief');
+
+            if (percentScore < 45) {
+                statusText.innerText = "RISKAN";
+                statusText.className = "text-[10px] uppercase tracking-wider font-extrabold text-red-500";
+                circle.setAttribute('stroke', '#ef4444');
+                briefText.innerText = "Model bisnis Anda masih riskan. Tingkatkan switching cost untuk mengunci pelanggan atau pertimbangkan model langganan berulang (recurring revenue).";
+            } else if (percentScore >= 45 && percentScore < 75) {
+                statusText.innerText = "MODERAT";
+                statusText.className = "text-[10px] uppercase tracking-wider font-extrabold text-amber-500";
+                circle.setAttribute('stroke', '#f59e0b');
+                briefText.innerText = "Model bisnis Anda cukup andal. Optimalkan skalabilitas dan jalin kolaborasi agar operasional biaya Anda menjadi lebih ramping.";
+            } else {
+                statusText.innerText = "SANGAT KOKOH";
+                statusText.className = "text-[10px] uppercase tracking-wider font-extrabold text-emerald-500";
+                circle.setAttribute('stroke', '#10b981');
+                briefText.innerText = "Luar biasa! Model bisnis Anda memiliki fondasi benteng pertahanan yang kuat, pendapatan berulang, dan struktur skala pertumbuhan yang andal.";
+            }
+        };
+
+        // Mengikuti alur inisiasi tepercaya
+        try {
+            if (firebaseConfig.apiKey !== "mock-key") {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isFirebaseActive = true;
+            }
+        } catch (e) {
+            console.warn("Koneksi cloud dinonaktifkan (Mode Offline):", e);
+        }
+
+        // Inisialisasi Otentikasi sebelum operasi database dilakukan (RULE 3)
+        async function authenticateUser() {
+            if (!isFirebaseActive) {
+                userId = "guest-" + Math.random().toString(36).substring(2, 10);
+                document.getElementById('display-user-id').innerText = userId + " (Offline)";
+                return;
+            }
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser?.uid || "anonymous-user";
+                document.getElementById('display-user-id').innerText = userId;
+                
+                // Mulai memuat custom case yang pernah disimpan pengguna
+                loadSavedCloudCases();
+            } catch (err) {
+                console.error("Firebase Authentication Error:", err);
+                showToast("Gagal menyambung ke awan. Berjalan dalam mode offline.", "error");
+            }
+        }
+
+        // Memuat daftar Kasus Kustom dari Database Awan (Sesuai RULE 1 & RULE 2)
+        async function loadSavedCloudCases() {
+            if (!isFirebaseActive || !auth.currentUser) return;
+
+            try {
+                // Mengikuti RULE 1 - Jalur Simpan: /artifacts/{appId}/users/{userId}/{collectionName}
+                const q = collection(db, 'artifacts', appId, 'users', userId, 'custom_cases');
+                const querySnapshot = await getDocs(q);
+                
+                customSavedCases = {};
+                
+                querySnapshot.forEach((docSnap) => {
+                    const docData = docSnap.data();
+                    customSavedCases[docSnap.id] = {
+                        id: docSnap.id,
+                        title: docData.title,
+                        subtitle: docData.subtitle,
+                        data: docData.data
+                    };
+                });
+
+                updateDropdownSelector();
+            } catch (err) {
+                console.error("Error memuat data simpanan:", err);
+                showToast("Gagal memuat beberapa kasus kustom.", "error");
+            }
+        }
+
+        // Menampilkan notifikasi Toast mengambang di layar
+        window.showToast = function(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgClass = type === "success" ? "bg-emerald-500" : type === "error" ? "bg-red-500" : "bg-amber-500";
+            
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[280px] text-sm font-semibold transition-all duration-300 transform translate-x-12 opacity-0`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" class="ml-4 font-bold opacity-75 hover:opacity-100">✕</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animasi masuk
+            setTimeout(() => {
+                toast.classList.remove('translate-x-12', 'opacity-0');
+            }, 10);
+
+            // Hilang otomatis dalam 3.5 detik
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        // Memperbarui opsi Dropdown Pemilihan Kasus dengan data custom dari awan
+        function updateDropdownSelector() {
+            const selector = document.getElementById('template-select');
+            const currentSelection = selector.value;
+            
+            // Hapus opsi kustom lama
+            const options = Array.from(selector.options);
+            options.forEach(opt => {
+                if (opt.className === "custom-user-option") {
+                    selector.removeChild(opt);
+                }
+            });
+
+            // Tambahkan kembali kasus kustom yang disimpan dari database
+            Object.keys(customSavedCases).forEach(caseId => {
+                const opt = document.createElement('option');
+                opt.value = `custom_${caseId}`;
+                opt.className = "custom-user-option";
+                opt.innerText = `📂 ${customSavedCases[caseId].title}`;
+                selector.appendChild(opt);
+            });
+
+            // Kembalikan seleksi jika masih ada
+            selector.value = currentSelection;
+        }
+
+        // Fungsi render utama elemen-elemen BMC
+        window.renderBMC = function() {
+            // Update teks Header Ekspor secara sembunyi
+            document.getElementById('export-title').innerText = canvasState.title;
+            document.getElementById('export-subtitle').innerText = canvasState.subtitle;
+
+            // Memulai perulangan render per-blok data
+            Object.keys(canvasState.data).forEach(key => {
+                const container = document.getElementById(`notes-${key}`);
+                container.innerHTML = "";
+
+                canvasState.data[key].forEach((text, index) => {
+                    const card = document.createElement('div');
+                    card.className = "sticky-note rounded-lg p-3 text-xs font-semibold leading-relaxed relative flex justify-between items-start border-l-4 pr-7 group cursor-pointer";
+                    card.innerHTML = `
+                        <span class="note-text select-all cursor-text">${text}</span>
+                        <button onclick="removeStickyNote('${key}', ${index}); event.stopPropagation();" class="delete-btn absolute top-2.5 right-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition duration-150 text-xs font-bold leading-none">✕</button>
+                    `;
+
+                    // Double-click to Edit
+                    card.addEventListener('dblclick', () => {
+                        const textSpan = card.querySelector('.note-text');
+                        const originalText = textSpan.innerText;
+                        
+                        const inputElement = document.createElement('textarea');
+                        inputElement.value = originalText;
+                        inputElement.className = "w-full bg-white border border-slate-300 p-1 rounded font-sans text-xs focus:outline-none";
+                        inputElement.rows = 2;
+
+                        card.replaceChild(inputElement, textSpan);
+                        inputElement.focus();
+
+                        const saveContent = () => {
+                            const trimmedText = inputElement.value.trim();
+                            if (trimmedText) {
+                                canvasState.data[key][index] = trimmedText;
+                                renderBMC();
+                            } else {
+                                removeStickyNote(key, index);
+                            }
+                        };
+
+                        inputElement.addEventListener('blur', saveContent);
+                        inputElement.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                saveContent();
+                            }
+                        });
+                    });
+
+                    container.appendChild(card);
+                });
+            });
+
+            // Tampilkan tombol "Hapus Kasus" jika yang dimuat adalah custom case kustom
+            const selectVal = document.getElementById('template-select').value;
+            const deleteBtn = document.getElementById('btn-delete-custom');
+            if (selectVal.startsWith('custom_')) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        };
+
+        // Fungsi menambah Sticky Note secara dinamis
+        window.addStickyNote = function(blockKey) {
+            const inputField = document.getElementById(`input-${blockKey}`);
+            const textValue = inputField.value.trim();
+
+            if (textValue !== "") {
+                canvasState.data[blockKey].push(textValue);
+                inputField.value = "";
+                renderBMC();
+            }
+            inputField.focus();
+        };
+
+        // Fungsi menghapus Sticky Note
+        window.removeStickyNote = function(blockKey, index) {
+            canvasState.data[blockKey].splice(index, 1);
+            renderBMC();
+        };
+
+        // Fungsi memuat studi kasus yang dipilih (lokal maupun kustom cloud)
+        window.loadSelectedTemplate = function() {
+            const selectVal = document.getElementById('template-select').value;
+            
+            if (selectVal.startsWith('custom_')) {
+                const caseId = selectVal.replace('custom_', '');
+                if (customSavedCases[caseId]) {
+                    canvasState = JSON.parse(JSON.stringify(customSavedCases[caseId]));
+                }
+            } else {
+                canvasState = JSON.parse(JSON.stringify(activeTemplates[selectVal]));
+            }
+            renderBMC();
+        };
+
+        // Kontrol Dialog Modal Kustom Simpan Case
+        window.triggerSaveCase = function() {
+            const selectVal = document.getElementById('template-select').value;
+            
+            // Set judul & deskripsi saat ini sebagai saran nama simpanan
+            document.getElementById('save-case-title').value = canvasState.title;
+            document.getElementById('save-case-subtitle').value = canvasState.subtitle;
+            
+            const modal = document.getElementById('save-case-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeSaveCaseModal = function() {
+            const modal = document.getElementById('save-case-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        };
+
+        // Menyimpan Model Bisnis Secara Nyata ke Firestore (Aturan RULE 1 & RULE 3)
+        window.executeSaveCase = async function() {
+            const titleInput = document.getElementById('save-case-title').value.trim();
+            const subtitleInput = document.getElementById('save-case-subtitle').value.trim();
+
+            if (!titleInput) {
+                showToast("Judul model bisnis tidak boleh kosong!", "error");
+                return;
+            }
+
+            closeSaveCaseModal();
+            toggleLoadingScreen(true, "Menyimpan rancangan bisnis Anda ke cloud...");
+
+            canvasState.title = titleInput;
+            canvasState.subtitle = subtitleInput;
+
+            if (isFirebaseActive && auth.currentUser) {
+                try {
+                    const selectVal = document.getElementById('template-select').value;
+                    let targetDocRef;
+
+                    if (selectVal.startsWith('custom_')) {
+                        // Perbarui data lama jika sedang membuka kasus yang sama
+                        const caseId = selectVal.replace('custom_', '');
+                        targetDocRef = doc(db, 'artifacts', appId, 'users', userId, 'custom_cases', caseId);
+                    } else {
+                        // Simpan sebagai kasus kustom yang baru
+                        const newCaseRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'custom_cases'));
+                        targetDocRef = newCaseRef;
+                    }
+
+                    const saveData = {
+                        title: canvasState.title,
+                        subtitle: canvasState.subtitle,
+                        data: canvasState.data,
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    await setDoc(targetDocRef, saveData);
+                    
+                    // Muat ulang daftar agar pembaruan dropdown terlihat
+                    await loadSavedCloudCases();
+                    
+                    // Alihkan seleksi dropdown ke kasus yang baru saja disimpan
+                    document.getElementById('template-select').value = `custom_${targetDocRef.id}`;
+                    loadSelectedTemplate();
+
+                    showToast("Kasus bisnis berhasil disimpan secara aman!");
+                } catch (err) {
+                    console.error("Gagal menyimpan ke firestore:", err);
+                    showToast("Gagal menyinkronkan data simpanan ke database awan.", "error");
+                } finally {
+                    toggleLoadingScreen(false);
+                }
+            } else {
+                // Fallback Penyimpanan Lokal Sementara (Jika offline)
+                const mockId = "offline_" + Math.random().toString(36).substring(2, 10);
+                customSavedCases[mockId] = JSON.parse(JSON.stringify(canvasState));
+                updateDropdownSelector();
+                document.getElementById('template-select').value = `custom_${mockId}`;
+                loadSelectedTemplate();
+                toggleLoadingScreen(false);
+                showToast("Disimpan sementara secara lokal (Offline mode).");
+            }
+        };
+
+        // Kontrol Dialog Modal Kustom Penghapusan Kasus
+        window.triggerDeleteCustomCase = function() {
+            const selectVal = document.getElementById('template-select').value;
+            if (!selectVal.startsWith('custom_')) return;
+
+            document.getElementById('confirm-modal-title').innerText = "Hapus Kasus Kustom Ini?";
+            document.getElementById('confirm-modal-body').innerText = "Apakah Anda yakin ingin menghapus model bisnis ini secara permanen dari akun cloud Anda?";
+            
+            const confirmBtn = document.getElementById('confirm-modal-action');
+            confirmBtn.className = "bg-accent-red hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm";
+            confirmBtn.onclick = executeDeleteCustomCase;
+
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        async function executeDeleteCustomCase() {
+            const selectVal = document.getElementById('template-select').value;
+            const caseId = selectVal.replace('custom_', '');
+
+            closeConfirmModal();
+            toggleLoadingScreen(true, "Sedang menghapus kasus kustom...");
+
+            if (isFirebaseActive && auth.currentUser) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'custom_cases', caseId);
+                    await deleteDoc(docRef);
+                    
+                    // Perbarui status dropdown lokal
+                    await loadSavedCloudCases();
+                    
+                    document.getElementById('template-select').value = "kosong";
+                    loadSelectedTemplate();
+                    showToast("Kasus kustom berhasil dihapus permanen.");
+                } catch (err) {
+                    console.error("Gagal menghapus:", err);
+                    showToast("Gagal menghapus dari penyimpanan awan.", "error");
+                } finally {
+                    toggleLoadingScreen(false);
+                }
+            } else {
+                // Fallback Hapus Offline
+                if (customSavedCases[caseId]) {
+                    delete customSavedCases[caseId];
+                    updateDropdownSelector();
+                }
+                document.getElementById('template-select').value = "kosong";
+                loadSelectedTemplate();
+                toggleLoadingScreen(false);
+                showToast("Kasus berhasil dihapus.");
+            }
+        }
+
+        // Penanganan Modal Konfirmasi Kosongkan Canvas
+        window.triggerClearCanvas = function() {
+            document.getElementById('confirm-modal-title').innerText = "Kosongkan Canvas?";
+            document.getElementById('confirm-modal-body').innerText = "Apakah Anda yakin ingin mengosongkan kanvas ini? Semua catatan strategi bisnis Anda saat ini akan dihapus secara permanen.";
+            
+            const confirmBtn = document.getElementById('confirm-modal-action');
+            confirmBtn.className = "bg-accent-red hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-sm";
+            confirmBtn.onclick = executeClearCanvas;
+
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeConfirmModal = function() {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        };
+
+        window.executeClearCanvas = function() {
+            canvasState = JSON.parse(JSON.stringify(activeTemplates.kosong));
+            document.getElementById('template-select').value = "kosong";
+            renderBMC();
+            closeConfirmModal();
+            showToast("Kanvas dikosongkan.");
+        };
+
+        // Mengunduh model canvas dalam format data teks (.txt)
+        window.downloadAsTxt = function() {
+            let txtContent = `=== STRATEGI BUSINESS MODEL CANVAS ===\n`;
+            txtContent += `Judul Bisnis: ${canvasState.title}\n`;
+            txtContent += `Visi/Deskripsi: ${canvasState.subtitle}\n`;
+            txtContent += `Tanggal Dibuat: ${new Date().toLocaleDateString('id-ID')}\n`;
+            txtContent += `======================================\n\n`;
+
+            const blockNames = {
+                kp: "Key Partnerships (8)",
+                ka: "Key Activities (6)",
+                kr: "Key Resources (7)",
+                vp: "Value Propositions (2)",
+                cr: "Customer Relationships (4)",
+                ch: "Channels (3)",
+                cs: "Customer Segments (1)",
+                cos: "Cost Structure (9)",
+                rev: "Revenue Streams (5)"
+            };
+
+            Object.keys(canvasState.data).forEach(key => {
+                txtContent += `[${blockNames[key]}]\n`;
+                if (canvasState.data[key].length === 0) {
+                    txtContent += ` - Belum ada komponen -\n`;
+                } else {
+                    canvasState.data[key].forEach((text, i) => {
+                        txtContent += ` ${i + 1}. ${text}\n`;
+                    });
+                }
+                txtContent += `\n`;
+            });
+
+            const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Business_Model_Canvas_${canvasState.title.replace(/\s+/g, '_')}.txt`;
+            link.click();
+            showToast("Laporan TXT diunduh.");
+        };
+
+        // Mengatur tampilan loader ekspor
+        window.toggleLoadingScreen = function(visible, message = "") {
+            const overlay = document.getElementById('loader-overlay');
+            const textElement = document.getElementById('loader-text');
+            if (message) textElement.innerText = message;
+            
+            if (visible) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+            } else {
+                overlay.classList.remove('flex');
+                overlay.classList.add('hidden');
+            }
+        };
+
+        // Mengekspor canvas menjadi Gambar beresolusi tinggi (PNG)
+        window.exportAsPNG = function() {
+            toggleLoadingScreen(true, "Sedang memproses penangkapan gambar canvas...");
+            document.body.classList.add('exporting');
+
+            const targetElement = document.getElementById('canvas-area');
+
+            setTimeout(() => {
+                html2canvas(targetElement, {
+                    scale: 2.5, // Kualitas resolusi tinggi (Retina friendly)
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                    scrollX: 0,
+                    scrollY: 0
+                }).then(canvas => {
+                    document.body.classList.remove('exporting');
+                    toggleLoadingScreen(false);
+
+                    const downloadLink = document.createElement('a');
+                    downloadLink.download = `Business_Model_Canvas_${canvasState.title.replace(/\s+/g, '_')}.png`;
+                    downloadLink.href = canvas.toDataURL("image/png");
+                    downloadLink.click();
+                    showToast("Gambar PNG berhasil diunduh.");
+                }).catch(err => {
+                    document.body.classList.remove('exporting');
+                    toggleLoadingScreen(false);
+                    console.error("Gagal membuat gambar PNG: ", err);
+                    showToast("Gagal memproses ekspor gambar.", "error");
+                });
+            }, 350);
+        };
+
+        // Mengekspor canvas menjadi dokumen PDF A4 lanskap berwarna
+        window.exportAsPDF = function() {
+            toggleLoadingScreen(true, "Mempersiapkan penataan halaman PDF...");
+            document.body.classList.add('exporting');
+
+            const targetElement = document.getElementById('canvas-area');
+
+            setTimeout(() => {
+                html2canvas(targetElement, {
+                    scale: 2.5,
+                    useCORS: true,
+                    backgroundColor: "#ffffff"
+                }).then(canvas => {
+                    document.body.classList.remove('exporting');
+                    toggleLoadingScreen(false);
+
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: 'landscape',
+                        unit: 'mm',
+                        format: 'a4'
+                    });
+
+                    const pdfWidth = 297;
+                    const pdfHeight = 210;
+                    const computedHeight = (canvas.height * pdfWidth) / canvas.width;
+                    
+                    let yPosition = 0;
+                    if (computedHeight < pdfHeight) {
+                        yPosition = (pdfHeight - computedHeight) / 2;
+                    }
+
+                    pdf.addImage(imgData, 'JPEG', 0, yPosition, pdfWidth, computedHeight);
+                    pdf.save(`Business_Model_Canvas_${canvasState.title.replace(/\s+/g, '_')}.pdf`);
+                    showToast("Laporan PDF berhasil diunduh.");
+                }).catch(err => {
+                    document.body.classList.remove('exporting');
+                    toggleLoadingScreen(false);
+                    console.error("Gagal menyusun PDF: ", err);
+                    showToast("Gagal menyusun PDF.", "error");
+                });
+            }, 350);
+        };
+
+        // Memulai render saat window selesai dimuat sepenuhnya
+        window.onload = async function() {
+            renderBMC();
+            await authenticateUser();
+
+            // Setup input focus listener untuk tombol Enter
+            document.querySelectorAll('.input-panel input').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const blockKey = this.id.replace('input-', '');
+                        addStickyNote(blockKey);
+                    }
+                });
+            });
+        };
+    </script>
+</body>
+</html>
